@@ -1,5 +1,13 @@
 <?php
 
+//Not sure who is the author,
+//there are many Spyc versions:
+// http://hackergarage.github.io/ThaFrame/Spyc/Spyc.html
+// https://github.com/ignaciot/nf-co.re/blob/master/Spyc.php
+// https://github.com/mustangostang/spyc
+// https://wiki.ihris.org/mediawiki/index.php/Class:_Spyc_(4.0.2)
+// https://topic.alibabacloud.com/a/a-complete-yaml-instance_8_8_20198857.html
+
 //namespace Components\FileC;
 
 //CUSTOM CHANGES
