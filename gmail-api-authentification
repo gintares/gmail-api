@@ -1,0 +1,958 @@
+<?php 
+
+ini_set( 'display_errors', 'On' );   
+error_reporting( E_ALL | E_STRICT ); 
+
+//echo '<br> from FILE='.__FILE__;
+
+// https://developers.google.com/workspace/guides/configure-oauth-consent
+// https://developers.google.com/identity/protocols/oauth2/scopes
+//https://developers.google.com/workspace/guides/create-credentials
+
+// Configure OAuth 2.0 for authorization
+//  An authorization scope is an OAuth 2.0 URI string that contains the Google Workspace app name, what kind of data it accesses, and the level of access. 
+// For any scopes listed in the "Your sensitive scopes" or "Your restricted scopes" sections, try to identify alternative non-sensitive scopes to avoid unnecessary additional reviews.
+// https://developers.google.com/identity/protocols/oauth2/scopes
+
+//clients
+////https://developers.google.com/workspace/gmail/api/quickstart/js
+//The newly created credential appears under OAuth 2.0 Client IDs.
+//Note the Client ID. Client secrets aren't used for Web applications.
+// scope :  https://www.googleapis.com/auth/gmail.readonly
+// Service name  gmail.googleapis.com 
+
+/* authorisation procedure 
+ * 
+ https://www.postman.com/postman/google-api-workspace/documentation/r07891g/google-gmail-api
+ * 
+ * 
+// Authorization codes: 256 bytes
+// Access tokens: 2048 bytes
+// Refresh tokens: 512 bytes
+# Client id from Google Developer console
+# Client Secret from Google Developer console
+# Scope this is a space seprated list of the scopes of access you are requesting.
+
+
+                 //"scope" => 'https://www.googleapis.com/auth/gmail.readonly',
+                 //"scope"=> "https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/gmail.readonly https://www.google.com/m8/feeds/ https://www.googleapis.com/auth/admin.directory.user.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/plus.profile.emails.read https://www.googleapis.com/auth/plus.moments.write https://www.googleapis.com/auth/plus.me https://www.googleapis.com/auth/plus.profile.agerange.read https://www.googleapis.com/auth/plus.profile.language.read https://www.googleapis.com/auth/plus.circles.members.read",
+
+# Authorization link.  Place this in a browser and copy the code that is returned after you accept the scopes.
+https://accounts.google.com/o/oauth2/auth?client_id=[Application Client Id]&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=[Scopes]&response_type=code
+
+# Exchange Authorization code for an access token and a refresh token.
+
+curl \
+--request POST \
+--data "code=[Authentcation code from authorization link]&client_id=[Application Client Id]&client_secret=[Application Client Secret]&redirect_uri=urn:ietf:wg:oauth:2.0:oob&grant_type=authorization_code" \
+https://accounts.google.com/o/oauth2/token
+
+# Exchange a refresh token for a new access token.
+curl \
+--request POST \
+--data 'client_id=[Application Client Id]&client_secret=[Application Client Secret]&refresh_token=[Refresh token granted by second step]&grant_type=refresh_token' \
+https://accounts.google.com/o/oauth2/token
+
+//curl --location --globoff 'https://gmail.googleapis.com/gmail/v1/users/:userId/profile?
+//access_token={{access_token}}
+//&key={{key  -- see api_id or api_key }}
+//&oauth_token={{oauth_token}}
+//&alt={{alt}}&callback={{callback}}&fields={{fields}}&prettyPrint={{prettyPrint}}&quotaUser={{quotaUser}}&upload_protocol={{upload_protocol}}&uploadType={{uploadType}}&%24.xgafv={{%24.xgafv}}' \
+//--header 'Accept: application/json'
+
+authorisation  response =
+
+ {
+  "access_token": "ya29.a0AZYkNZgZxSMKuIwdAZfdichQbuZc45w-VQYkI3LfiW-ZEXqT8_m52JzMpd5y5FxAaWrUwL3twu1rlpR-HbUif4Ign40f4H4_KjZvvfmVpihGUJNULVGffzoNqncGMjLioUqCurOV5m5VGBYnFkwoNdW0dQbeXJ5xl9rI0VchaCgYKAYkSARcSFQHGX2MimSaVdpV-h2arT5afUUoyaQ0175",
+  "expires_in": 3599,
+  "refresh_token": "1//09fE3cCRsX3BRCgYIARAAGAkSNwF-L9IrE7YzZ6wcZyIEhhlddKkXJhiAFDJOWUK-wT8xXujTAdPQocekrC8v-eQG_hiOkfIBCL0",
+  "scope": "https://www.googleapis.com/auth/gmail.readonly",
+  "token_type": "Bearer",
+  "refresh_token_expires_in": 604799
+}  line210  ##date=1745950373 bmatched_autho_code=
+
+*/
+
+// Discovery doc URL for APIs used by the quickstart
+// A Discovery Document is a machine-readable specification for describing and consuming REST APIs. It is used to build client libraries, IDE plugins, and other tools that interact with Google APIs. One service may provide multiple discovery documents. 
+// Gmail API ervice provides the following discovery document:
+// https://gmail.googleapis.com/$discovery/rest?version=v1
+//const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest';
+
+// A service endpoint is a base URL that specifies the network address of an API service. One service might have multiple service endpoints. 
+// Gmail API ervice provides the following service endpoint and all URIs below are relative to this service endpoint: https://gmail.googleapis.com
+
+//https://developers.google.com/workspace/gmail/api/reference/rest?apix=true
+//  	GET /gmail/v1/users/{userId}/messages/{id} --Gets the specified message.
+//  	GET /gmail/v1/users/{userId}/messages/{messageId}/attachments/{id} -Gets the specified message attachment.
+//      GET /gmail/v1/users/{userId}/threads/{id} -Gets the specified thread.
+//      GET /gmail/v1/users/{userId}/threads - Lists the threads in the user's mailbox.
+    
+$code = null;
+$authorization_code = null;
+$access_token = null; 
+$refresh_token = null; 
+$token_type = null;
+$refresh_token_expires_in = null;
+
+//OAuth 2.0 credentials from the Google API Console.  
+$client_id = 'paste client_id from google console';
+$client_secret = 'paste client_secret from google console'; 
+$api_id = 'paste api_id from google console '; //key
+
+$redirect_uri_auth = 'https://uveik.com/ga4/curl3.php?b=auth'; //this has to be the same as in google API, OAuth 2.0 Client IDs, Authorised redirect URI
+$redirect_uri_draft = 'https://uveik.com/ga4/curl4.php'; 
+$redirect_uri = $redirect_uri_draft;
+
+
+$referer ='https://uveik.com/ga4/curl4.php';
+// https://www.googleapis.com/gmail/v1/users/enattee%40gmail.com/messages'
+$csrf_state =  md5( uniqid(mt_rand(), true) );
+//  $_SESSION['state'] = $state; //or write to some file
+$now = time();
+$userId = 'ginwork10@gmail.com';
+
+$proj_dir = '/server-path/ga4';
+$db_gmsg = $proj_dir.'/db/dbgmsg/gw10/';
+$db_conts = $proj_dir.'/db/dbconts';
+$base = $proj_dir.'/gw10';
+$components = $proj_dir;
+
+$oauthCredFnm = $base.'/oauthCred.json';
+$oauthCodeCredFnm = $base.'/oauthCodeCredFnm.json';
+$tokenFnm = $base.'/token.json';
+$last_post_oauth_stateFnm = $base.'/last_post_oauth_state.json';
+$request_log2Fnm = $base.'/request_log2';
+
+$dby_gmsgFnm = $db_gmsg.'/dby_gmsg.yaml'; //contains various message fields,
+$dbj_gmsg_idsFnm = $db_gmsg.'/dbj_gmsg_ids.json'; //  // maps msg_id with 
+$dbj_gmsg_emailsFnm = $db_gmsg.'/dbj_gmsg_emails.json';  //maps email: msg-id
+$dbj_gmsg_threadsFnm = $db_gmsg.'/dbj_gmsg_threads.json'; //maps tread_id: msg-id
+
+
+include $components.'/helpF.php';
+include $components.'/Spyc.php'; // any class to parse yaml
+$spy = new Spyc();
+ // $Spy->YAMLLoad // YAMLLoadString
+ // YAMLDump($array, $indent = false, $wordwrap = false, $no_opening_dashes = false) 
+
+$binit_db_gmsg = true; 
+$brefresh = false; 
+$err= false;
+$response = 'none'; 
+$berr_code = false;
+$berr_state = true; //assumes forgery attack, unless proven opposite
+
+
+$bget=false;
+$bget_new = false;
+$bnew_code = false;
+$bmatched_code = false;
+$bmatched_autho_code = false;
+$btoken = false;
+
+$bsend_draft = true;
+$bsearch = false; 
+$q = 'in:sent after:2025/03/20 before: 2025/04/21'; 
+$q = 'is:sent ExCel';
+$q = 'is:sent Crime';
+
+$toA=[];
+$from='';
+$usernameFrom='';
+
+//$scope = 'https://www.googleapis.com/auth/gmail.readonly'; //array_merge('+',[scope1, scope1]) 
+if($bsend_draft) {
+    $scope = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.send'; 
+}
+else if ($bserach) {
+    $scope = 'https://www.googleapis.com/auth/gmail.readonly'; //array_merge('+',[scope1, scope1]) 
+}
+
+
+//echo '<br> POST=<pre>'; print_r($_POST);
+echo '<br> GET=<pre>'; print_r($_GET);
+//echo '<br> SERVER=<pre>'; print_r($_SERVER); // you need HTTP_REFERER
+//echo '<br> http_response_header='; print_r($http_response_header);
+//file_put_contents($request_log2Fnm, PHP_EOL.'###############SERVER,                     for date='.$now.PHP_EOL.json_encode($_SERVER).PHP_EOL, FILE_APPEND );
+//file_put_contents($request_log2Fnm, PHP_EOL.'###############SESSION,                     for date='.$now.PHP_EOL.json_encode($_SESSION).PHP_EOL, FILE_APPEND );
+file_put_contents($request_log2Fnm, PHP_EOL.'###############POST,                     for date='.$now.PHP_EOL.json_encode($_POST).PHP_EOL, FILE_APPEND );
+file_put_contents($request_log2Fnm, PHP_EOL.'###############GET,                     for date='.$now.PHP_EOL.json_encode($_GET).PHP_EOL, FILE_APPEND );
+
+$lpos = file_get_contents($last_post_oauth_stateFnm);
+$lposa = json_decode($lpos, true);
+echo '<br> lposa=<pre>'; print_r($lposa);
+//file_put_contents($request_log2Fnm, '           $last_post_oauth_state  for date '.$now.PHP_EOL.$lpos.PHP_EOL, FILE_APPEND );
+
+    
+if( empty($_POST) && empty($_GET) ) { 
+    //&& !isset($_SERVER['HTTP_REFERER']) ) {
+    
+    if( file_exists($tokenFnm) ) {
+        
+        $tkj = file_get_contents($tokenFnm);
+        if( !empty($tkj) ) {
+            $tkA = json_decode($tkA, true);
+            
+            echo '<br> 164____tkA='; print_r($tkA);
+            
+            if( !empty($tkA) ) {
+                $access_token = array_key_exists($tkA['access_token']) ? $tkA['access_token'] : null; 
+                $refresh_token = array_key_exists($tkA['refresh_token']) ? $tkA['refresh_token'] : null; 
+                $token_type = array_key_exists($tkA['token_type']) ? $tkA['token_type'] : null; 
+                $refresh_token_expires_in = array_key_exists($tkA['refresh_token_expires_in']) ? $tkA['refresh_token_expires_in'] : null; 
+                $expires = array_key_exists($tkA['expires']) ? $tkA['expires'] : null;
+                
+                $dtexp = date('Y-m-d h:s', $xpires);
+                $bm=file_put_contents( $request_log2Fnm, json_encode(PHP_EOL.'  line140  ##date='.$now.' empty post & get expiration date = '.$dtexp ), FILE_APPEND  );
+                echo '<br> expiration date = '.$dtexp.'   bm='.$bm; 
+                
+                if( !is_null($expires) && ($expires < $now) ) {
+                    $btoken = true;
+                    $bnew_code= false; 
+                    $bmatched_code = false; 
+                    $bmatched_autho_code = false;
+                    $brefresh = false;
+                    $berr_state = false;
+                    $bm=file_put_contents( $request_log2Fnm, json_encode(PHP_EOL.'  line140  ##date='.$now.' empty post & get trial to use token which is not expired' ), FILE_APPEND  );
+                    echo '<br>  line240  ##date='.$now.' empty post & get,  trial to use token which is not expired,   bm='.$bm; 
+                } // if( !is_null($expires) && ($expires < $now
+            } // if( !empty($tkA) 
+            
+        } // if( !empty($tkj)
+    } // if( file_exists($tokenFnm)
+    
+    if( !($brefresh ||  $btoken ) ) {
+        $btoken = false;
+        $bnew_code= true; 
+        $bmatched_code = false; 
+        $bmatched_autho_code = false;
+        $brefresh = false;
+        $berr_state = false;
+    }
+
+
+} // if(  empty($_POST) && empty($_GET)
+
+else if( !empty($_GET)  ) {
+    
+     if( array_key_exists('code', $_GET) ) {
+        $code =  $_GET['code'];
+        $bmatched_code = true; 
+        $bmatched_autho_code = false;
+        $btoken = false; 
+        $brefresh = false;
+        $bm = file_put_contents($oauthCredFnm, json_encode($_GET) );
+
+        file_put_contents( $request_log2Fnm, json_encode(PHP_EOL.'  line150  ##date='.$now.'  get='.json_encode($_GET) ), FILE_APPEND  );
+         //state is csrf token, anti cross forgery check 
+         //you can also cehck the dates betweej requests 
+        if( (1===1) && array_key_exists('state', $_GET) && array_key_exists('state', $lposa) && ($_GET['state']===$lposa['state']) ) {
+            $berr_state = false;
+        }
+    } // if( array_key_exists('code', $_GET) ) {
+} // if( !empty($_GET)
+
+else if( !empty($_POST)  ) {
+    //if( array_key_exists('authorization_code', $_POST) ) {
+    
+    $access_token = array_key_exists($_POST['access_token']) ? $_POST['access_token'] : null; 
+    $refresh_token = array_key_exists($_POST['refresh_token']) ? $_POST['refresh_token'] : null; 
+    $token_type = array_key_exists($_POST['token_type']) ? $_POST['token_type'] : null; 
+    $refresh_token_expires_in = array_key_exists($_POST['refresh_token_expires_in']) ? $_POST['refresh_token_expires_in'] : null; 
+    $_POST['expires'] = $now  + $refresh_token_expires_in - 100;
+    $bm=file_put_contents($tokenFnm, $_POST);
+
+    //$authorization_code = $_POST['authorization_code'];
+    //You can only make ONE CALL when you get the initial token (used for an access token call). If that fails, you must get another token from the previous leg.
+    $bmatched_autho_code = true;
+    $bmatched_code = false;
+    $btoken = true;
+    $brefresh = false;
+    $bnew_code  = false;
+    $bm = file_put_contents($oauthCodeCredFnm, json_encode($_POST) );
+    file_put_contents( $request_log2Fnm, json_encode(PHP_EOL.'  line150  ##date='.$now.'  get='.json_encode($_GET) ), FILE_APPEND  );
+     //state is csrf token, anti cross forgery check 
+     //you can also cehck the dates betweej requests 
+    if( (1===1) && array_key_exists('state', $_POST) && array_key_exists('state', $lposa) && ($_GET['state']!=$lposa['state']) ) {
+        $berr_state = true;
+    }
+    else {
+         $berr_state = false;
+        echo '<br> ERROR, states does not match in authorisation '; 
+    }
+
+
+} // if( !empty($_POST
+
+$bm=file_put_contents( $request_log2Fnm, json_encode(PHP_EOL.'  line160  ##date='.$now.'    berr_code='.$berr_code.'   bnew_code='.$bnew_code.'  $matched_code='. $bmatched_code.'  btoken='.$btoken.'  brefresh='.$brefresh ), FILE_APPEND  ); 
+echo '<br>  line160  ##date='.$now.'    berr_code='.$berr_code.'   bnew_code='.$bnew_code.'  $matched_code='. $bmatched_code.'  btoken='.$btoken.'  brefresh='.$brefresh.'  bm='.$bm; 
+
+if( $bnew_code ) { 
+    
+    $lposa = [ 'state'=>$csrf_state, 'start_time'=>$now, 'getp'=>'authcode', 'scope'=>$scope ]; 
+    $lposj = json_encode($lposa);
+    $bm = file_put_contents($last_post_oauth_stateFnm, $lposj);
+    echo '<br> bm='.$bm.'   $lposj='. $lposj;
+    
+    $fields = [
+        "scope" => $scope, 
+        "response_type" => 'code', 
+        //'response_type'=> 'token',
+        //"grant_type" => "authorization_code", 
+        //"code"=>$code, 
+        "access_type" => 'offline', 
+        "state" => $csrf_state,
+        "redirect_uri" => $redirect_uri,  //Callback URL: This is the redirect URL you specified in your Google Cloud Console. //  redirect_uri=https://YOUR_APP/callback&
+        "client_id" => $client_id,
+        //"client_secret" => $client_secret,
+    ]; // fields 
+    //$pf = http_build_query( $fields, '', '&amp;' );//automatically urlencodes, maybe this causes an error in curl, which 2nd time urlencodes
+    $pf = http_build_query_noUrlEnc([ 'arr'=>$fields, 'ga' => [ '0'=>['g'=>'&', 'gcolval'=>'='] ] ]); 
+    echo '<br> fields='; print_r($fields);
+    echo '<br> pf='.$pf; 
+    file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    pf='.$pf, FILE_APPEND ); 
+    
+    $curl = curl_init("https://accounts.google.com/o/oauth2/v2/auth?authuser=2");
+    curl_setopt_array( $curl, [
+        //CURLOPT_URL => "https://accounts.google.com/o/oauth2/v2/auth?authuser=1" //the same as in curl_init
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 300,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => "POST",
+        //curl authomatically encodes postfields 
+        CURLOPT_POSTFIELDS => $pf,
+        //"scope=".$scope."&response_type=code&access_type=offline&state=".$csrf_state"&redirect_uri=".$redirect_uri_auth.'&client_id='.$client_id,
+        //'response_type': 'token',
+        // &audience='.$api_id - gives error 
+        // include_granted_scopes=true&  - maybe gives an error 
+        // https://www.googleapis.com/auth/gmail.modify
+        //scope = https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest
+        //"scope=https://www.googleapis.com/auth/cloud-platform&response_type=code&client_id='.$client_id.'&client_secret='.$client_secret.'&audience='.$api_id.'" ,
+        // "scope=https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest&response_type=code&access_type=offline&state='.$csrf_state.'&client_id='.$client_id.'&client_secret='.$client_secret.'&audience='.$api_id.'&redirect_uri=".$redirect_uri_oauth,
+        // "grant_type=client_credentials&client_id='.$client_id.'&client_secret='.$client_secret.'&audience='.$api_id.'",//"grant_type=client_credentials&client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&audience=YOUR_API_IDENTIFIER",
+        CURLOPT_HTTPHEADER => [
+            "content-type: application/x-www-form-urlencoded",
+            //'Cache-Control: no-cache',
+        ],
+    ]);
+    
+    $response = curl_exec($curl);
+    echo '<br> response = '; print_r($response); 
+    file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    auth-response='.html_entity_decode($response), FILE_APPEND  ); 
+    $err = curl_error($curl);
+   curl_close($curl);
+
+} //if( $bnew_code 
+
+   // Exchange Authorization code for an access token and a refresh token. 
+else if( ($bmatched_code && !$berr_state) || $brefresh ) {
+    
+    $lposa = [ 'state'=>$csrf_state, 'start_time'=>$now, 'getp'=>'accesstoken', 'scope'=>$scope ]; 
+    $lposj = json_encode($lposa);
+    $bm=file_put_contents($last_post_oauth_stateFnm, $lposj);
+    
+    //HTTP request
+        //Upload URI, for media upload requests:
+        //POST https://gmail.googleapis.com/upload/gmail/v1/users/{userId}/messages/send
+        
+        //Metadata URI, for metadata-only requests:
+        //POST https://gmail.googleapis.com/gmail/v1/users/{userId}/messages/send
+    
+        //Upload URI, for media upload requests:
+        //POST https://gmail.googleapis.com/upload/gmail/v1/users/{userId}/drafts
+        
+        //Metadata URI, for metadata-only requests:
+        //POST https://gmail.googleapis.com/gmail/v1/users/{userId}/drafts
+
+
+    $fields = [
+        //exchange code to the access_token
+        //"scope=" => $scope, 
+        //"response_type" => 'code', 
+        "grant_type" => "authorization_code", 
+        "code"=>$code, 
+        // does not work: "access_type" => 'offline', 
+        "state=" => $csrf_state,
+        "redirect_uri" => $redirect_uri, //Callback URL: This is the redirect URL you specified in your Google Cloud Console. //  redirect_uri=https://YOUR_APP/callback&
+        "client_id" => $client_id,
+        "client_secret" => $client_secret,
+        //Callback URL: This is the redirect URL you specified in your Google Cloud Console. 
+    ]; // fields 
+    
+    if($brefresh) {
+        //exchange refresh_token to new access_token
+        $fields["grant_type"] = "refresh_token";
+        $fields['refresh_token'] = $refresh_token;
+        unset($fields['code']);
+    }
+    //$pf = http_build_query( $fields, '', '&amp;' );//automatically urlencodes , maybe this causes an error in curl, which 2nd time urlencodes
+    $pf = http_build_query_noUrlEnc([ 'arr'=>$fields, 'ga' => [ '0'=>['g'=>'&', 'gcolval'=>'='] ] ]); 
+    echo '<br> qs='.$pf; 
+    $bm=file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    pf='.$pf, FILE_APPEND ); 
+    
+    //$curl = curl_init("https://oauth2.googleapis.com/token");
+    $curl = curl_init("https://www.googleapis.com/oauth2/v4/token");
+    curl_setopt_array( $curl, [
+        //CURLOPT_URL => "https://accounts.google.com/o/oauth2/v2/auth?authuser=1" //the same as in curl_init
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 300,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, 
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_VERBOSE => true,
+        //curl authomatically encodes postfields 
+        CURLOPT_POSTFIELDS => $pf, //"scope=".$scope."&response_type=code&access_type=offline&state=".$csrf_state."&redirect_uri=".$redirect_uri_auth.'&client_id='.$client_id,
+        CURLOPT_HTTPHEADER => [ 
+             //    "authorization: code ".$code,
+            'Cache-Control: no-cache',
+            'Content-Type: application/x-www-form-urlencoded',
+        ],
+    ]);
+    $responsej = curl_exec($curl);
+    echo '<br> line400___responsej =<pre> '; print_r($responsej);
+    $bm=file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    post for authorisation code -response='.html_entity_decode($responsej), FILE_APPEND  ); 
+    echo '<br> line400___bm='.$bm;
+    
+    $response = json_decode($responsej, true);
+    echo '<br> line400___response = '; print_r($response);
+    
+    if( !empty($response) && is_array($response) ) {
+        $access_token = array_key_exists('access_token',$response) ? $response['access_token'] : null; 
+         echo '<br>  line4000  $access_token-'. $access_token;
+        $refresh_token = array_key_exists('refresh_token', $response) ? $response['refresh_token'] : null; 
+        $token_type = array_key_exists('token_type', $response) ? $response['token_type'] : null; 
+        $refresh_token_expires_in = array_key_exists('refresh_token_expires_in', $response) ? $response['refresh_token_expires_in'] : null; 
+        //expires_in  --- lazy to implement , for access_token
+        //           $dtexp = date('Y-m-d h:s', $xpires);
+        if( !is_null($access_token) ) { 
+            $btoken = true; 
+            $bnew_code= false; 
+            $bmatched_code = false; 
+            $bmatched_autho_code = false;
+            echo '<br>  line4000 in case !is_null access_token XX'; 
+        }
+        if(!is_null( $refresh_token_expires_in ) ) {
+            $response['expires'] = $now  + $refresh_token_expires_in - 100;
+            $bm  = file_put_contents($tokenFnm, $response);
+            echo '<br> file_put_contents (tokenFnm... line400___bm='.$bm;
+        }
+        
+    } // !empty($response
+
+    $err = curl_error($curl);
+   //curl_close($curl);    
+}
+
+$bm=file_put_contents( $request_log2Fnm, PHP_EOL.'  line400  ##date='.$now.' $matched_autho_code='. $bmatched_autho_code.'  btoken='.$btoken, FILE_APPEND  ); 
+echo '<br>  line400  ##date='.$now.' bmatched_autho_code='. $bmatched_autho_code.'  btoken='.$btoken.'  bm='.$bm; 
+echo '<br>  line400___COND_get_draft ='.( $bsend_draft &&  $btoken && !$berr_state ).' $bsend_draft='.$bsend_draft.'    $btoken ='. $btoken .' $berr_state='.$berr_state; 
+  
+//comes to response ?? if(!empty($_POST) ) {}
+if( $bsend_draft && $btoken && !$berr_state ) { 
+    
+    $bdbg_send = false;
+    $id =null; 
+    $lengthRequestBody = 0;
+    $boundary1 = "000000000000bff2a906340664b1";
+    $boundary2 = "000000000000bff2ab06340664b3";
+
+     //fetch the draft ID
+    if(1===1) { 
+        
+        $lposa = [ 'state'=>$csrf_state, 'start_time'=>$now, 'getp'=>'msg', 'scope'=>$scope ]; 
+        $lposj = json_encode($lposa);
+        file_put_contents($last_post_oauth_stateFnm, $lposj);
+    
+        $q = 'subject:(May Easter renew and inspire for the next year) has:attachment in:sent';
+        $fields = [
+            'Host'=> 'www.googleapis.com',
+            'client_id'=>$client_id,
+            'key'=>$api_id,
+            'client_secret'=> $client_secret, 
+            //gives error in message search, bcs there are many scopes but used is readonly, "scope" => $scope,
+            "expires_in" => 3000,
+            'state' => $csrf_state,
+            'redirect_uri' => $redirect_uri,  //Callback URL: This is the redirect URL you specified in your Google Cloud Console. //  redirect_uri=https://YOUR_APP/callback&
+        ];
+        if ($bdbg_send ) { echo '<br> line500___fields ='; print_r($fields); }
+        //$qs= http_build_query($urla, '', '&amp;');//automatically urlencodes, maybe this causes an error in curl, which 2nd time urlencodes
+        $pf = http_build_query_noUrlEnc([ 'arr'=>$fields, 'ga' => [ '0'=>['g'=>'&', 'gcolval'=>'='] ] ]); 
+        if ($bdbg_send ) { echo '<br> line500___ pf='.$pf; }
+        file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    pf='.$pf, FILE_APPEND  ); 
+    
+        $qs = 'q='.urlencode($q).'&'.$pf;
+        if ($bdbg_send ) {  echo '<br> line500___qs='.$qs; }
+        $curl = curl_init( 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs ); 
+        //$curl = curl_init('https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages');
+        curl_setopt_array( $curl, [
+            //CURLOPT_URL => 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs // "https://myapi.com/api",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            //CURLOPT_POSTFIELDS => $pf,
+            CURLOPT_REFERER=>$referer, 
+            CURLOPT_HTTPHEADER => [ 
+                'authorization: '.$token_type.' '.$access_token,
+                "content-type: application/x-www-form-urlencoded",
+                'Cache-Control: no-cache',
+            ],
+        ]);
+    
+        $responsej = curl_exec($curl);
+        if ($bdbg_send ) {  echo '<br>  line500___draft_search_query response =<pre> '; print_r($responsej); }
+        $err = curl_error($curl);
+        //curl_close($curl);
+        
+        file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    get-response='.html_entity_decode($responsej), FILE_APPEND  ); 
+        $err = curl_error($curl);
+        if ($bdbg_send ) {  echo '<br> line500______err='; print_r($err); }
+       // curl_close($curl);
+        
+        if (!empty($responsej ) ) {
+            //array_key_exists('',$rsp) ? $rsp[''] : null;
+            $rsp = json_decode($responsej,true);
+            if( !empty($rsp) && array_key_exists('messages',$rsp) && array_key_exists( 'resultSizeEstimate', $rsp) ) {
+                //echo '<br> rsp = '; print_r($rsp);
+                if( !empty($rsp['messages']) && ($rsp['resultSizeEstimate']===1) ) {
+                    foreach( $rsp['messages'] as $ma ) {
+                        //$cnt++; 
+                        $id = $ma['id'];
+                    } // foreach( $msgA as $ma
+                } // if( !empty($msgA) && count($msgA)===1 
+            } // if( !empty($rsp 
+        } // fetch draft-id
+        
+    } // 1===1
+    if ($bdbg_send ) {  echo '<br>  line500___id='.$id; }
+    
+    //get draft = https://gmail.googleapis.com/gmail/v1/users/{userId}/drafts/{id}
+    //make draft copy
+    //send the draft
+    if( !is_null($id) && (1===1) ) {
+        
+        /*
+        //https://gmail.googleapis.com/gmail/v1/users/{userId}/drafts/{id}
+        $curl = curl_init('https://gmail.googleapis.com/gmail/v1/users/'.$userId.'/drafts/'.$id); 
+        curl_setopt_array( $curl, [
+            //CURLOPT_URL => 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs // "https://myapi.com/api",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            //CURLOPT_POSTFIELDS => $pf,
+            CURLOPT_REFERER=>$referer,
+            CURLOPT_HTTPHEADER => [ 
+                'authorization: '.$token_type.' '.$access_token,
+                "content-type: application/x-www-form-urlencoded",
+                'Cache-Control: no-cache',
+            ],
+        ]); // curl_setopt_array( $curl, 
+        $mresponsej = curl_exec($curl);
+        echo '<br>$  id='.$id.'  560___draft query mresponse =<pre> '; print_r($mresponsej);
+        $err = curl_error($curl);
+        //curl_close($curl);
+        */
+            
+        $curl = curl_init( 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages/'.$id ); 
+        //$curl = curl_init('https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages');
+        curl_setopt_array( $curl, [
+            //CURLOPT_URL => 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs // "https://myapi.com/api",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            //CURLOPT_POSTFIELDS => $pf,
+            CURLOPT_REFERER=>$referer,
+            CURLOPT_HTTPHEADER => [ 
+                'authorization: '.$token_type.' '.$access_token,
+                "content-type: application/x-www-form-urlencoded",
+                'MIME-Version: 1.0',
+                'Cache-Control: no-cache',
+            ],
+        ]);
+    
+        $responsej = curl_exec($curl);
+        $err = curl_error($curl);
+        if ($bdbg_send ) {  
+            echo '<br> 560___messagaes query response =<pre> '; 
+            print_r($responsej); 
+            
+        }
+        //curl_close($curl);
+        
+        $toA = ['forukis.contact@gmail.com']; 
+        $from = 'ginwork10@gmail.com';
+        $usernameFrom = 'Gin Work';
+        $fA = ['Easter_forukis.png'=>[ 'fnm'=> $proj_dir.'/Easter_forukis.png', 'ctps'=>'image/png' ], 
+                'Easter_Uveik.png'=> [ 'fnm'=> $proj_dir.'/Easter_Uveik.png', 'ctps'=>'image/png' ],
+                'CV25_invest-2.pdf'=>[ 'fnm'=> $proj_dir.'/CV25_invest-2.pdf', 'ctps'=>'application/pdf'  ]
+        ];
+        $boundary = '--000000000000bff2ab06340664b3';
+        //$nl = '\r\n';
+        //$atchs = addImgFH([ 'boundary'=>$boundary , 'fA'=>$fA ]);
+        //$attch = implode($nl, $atchs);
+        
+        //echo '<br> 605_____attch='; print_r($attch);
+        // https://developers.google.com/workspace/gmail/api/guides/uploads        
+        foreach( $toA as $to ) {
+            
+            if($bdbg_send) { echo '<br> 600____to = '.$to; }
+            $dt = date('D, d M Y h:i:s O', time() ) ;
+        
+           $fields =null;
+           if ( !empty($responsej ) ) {
+                //array_key_exists('',$rsp) ? $rsp[''] : null;
+               $rsp = json_decode($responsej,true);
+                if( !empty($rsp) ) {
+                    $fields = genEfE(['arr'=>$rsp, 'to'=>$to, 'username'=>$usernameFrom, 'userId'=>$from ]);
+                    
+                    if ($bdbg_send ) {  
+                        echo '<br> after genEfE, fields = '; print_r($fields);
+                    }
+                    
+                    $gOI = [ 'arr'=>$fields, 'fA'=>$fA ];
+                    $bytesR = ['n'=>0]; 
+                    $sizeR = ['n'=>0]; 
+                    $bFilesR  =['cnt'=>0];
+                    $gOI['sizeR'] = &$sizeR;
+                    $gOI['bytesR'] = &$bytesR;
+                    $gOI['bfilesR'] = [ 'cnt'=>0 ];
+                    $fields = getAttchH($gOI);
+                    //$atchs = addImgFH([ 'boundary'=>$boundary , 'fA'=>$fA ]);
+                    //foreach( $atchs as $ak=>$atch ) {
+                    //    $fields[] = $atch;
+                    //}
+                } // rsp 
+            } // $responsej
+            $mf = json_encode($fields);
+            echo '<br> mf='. $mf;
+            $mf = str_replace('\r\n', '',$mf);
+            $mf = str_replace('\n', '',$mf);
+            $mf = str_replace('\r', '',$mf);
+            
+            $dbga = prfields($fields);
+            //if ($bdbg_send ) {  
+                echo '<br> 640___dbga = fields = '; print_r($dbga);
+            //}
+  
+  // Content-Type: multipart/mixed; boundary="$boundary"
+  
+$contL = $bytesR['n'];
+$files = [ 'payload' =>[ 'parts'=>[]  ]];
+$files['payload']['parts'][] = $fields['payload']['parts'][1];
+$files['payload']['parts'][] = $fields['payload']['parts'][2];
+$files['payload']['parts'][] = $fields['payload']['parts'][3];
+//$files['payload']['sizeEstimate'] = $fields['payload']['parts'][1]['body']['size'] + $fields['payload']['parts'][2]['body']['size'] + $fields['payload']['parts'][3]['body']['size'];
+//$files['payload']['bytes'] = $fields['payload']['parts'][1]['body']['raw'] + $fields['payload']['parts'][2]['body']['raw'] + $fields['payload']['parts'][3]['body']['raw'];
+$jfl = json_encode($files);
+    //Referer: $referer
+    //Authorization: $token_type  $access_token
+    
+$msgs = [ 'payload' =>[ 'parts'=>[]  ]];
+$msgs['payload']['parts'][0] = $fields['payload']['parts'][0];
+$msgs['payload']['parts'][0]['parts'][0]['body']['raw'] = $msgs['payload']['parts'][0]['parts'][0]['body']['data'];
+unset( $msgs['payload']['parts'][0]['parts'][0]['body']['data'] );
+
+$msgs['payload']['parts'][0]['parts'][1]['body']['raw'] = $msgs['payload']['parts'][0]['parts'][1]['body']['data'];
+unset( $msgs['payload']['parts'][0]['parts'][1]['body']['data'] );
+$msgj = json_encode($msgs);
+
+$pf=<<<HERE
+    POST HTTP/1.1
+    MIME-Version: 1.0
+    Date: $dt
+    Subject: May Easter renew and inspire for the next year, bring health and strength, love and happiness!
+    From: $usernameFrom <$from>
+    To: $to
+    Content-Type: multipart/related; boundary="$boundary2"
+    Content-Length:  $contL
+    
+    --$boundary2
+    Content-Type: multipart/alternative; boundary="$boundary1"
+
+    --$boundary1
+    Content-Type: application/json; charset=UTF-8
+    
+    $jfl
+    
+    --$boundary1
+    Content-Type: message/rfc822
+    
+    $msgj
+    
+    --$boundary2--
+    
+    
+HERE;
+    
+            //https://developers.google.com/workspace/gmail/api/guides/uploads
+            //$curl = curl_init('https://gmail.googleapis.com/gmail/v1/users/'.$userId.'/messages/send');
+            //echo '<br> 765___etxt='.$etxt;
+            
+            $curl = curl_init( 'https://gmail.googleapis.com/gmail/v1/users/'.$userId.'/messages/send?uploadType=multipart' );
+            curl_setopt_array( $curl, [
+                //CURLOPT_URL => 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs // "https://myapi.com/api",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "POST",
+                CURLOPT_POSTFIELDS => $pf, // $etxt, //$pf, //must be array in case files are send
+                CURLOPT_REFERER => $referer,
+                CURLOPT_HTTPHEADER => [ 
+                    //'Date: $dt',
+                    'authorization: '.$token_type.'  '.$access_token,
+                    //'From: '.$usernameFrom.' <'.$from.'>',
+                    //'To: '.$to,
+                    'Cache-Control: no-cache',
+                    //'Content-Type: multipart/related', //; boundary="'.$boundary2.'"',
+                    //'Content-Length:  '.$contL,
+                    //"Content-Type: multipart/mixed",
+                    //"Content-Type: application/json; charset=UTF-8"
+                ], // CURLOPT_HTTPHEADER
+            ]);
+        
+            $sresponsej = curl_exec($curl);
+            $err = curl_error($curl);
+            
+            echo '<br> 560___messagaes query response =<pre> '; print_r($sresponsej);
+            curl_close($curl);
+            
+            
+        } // foreach( $toA as $to 
+    } // if( !is_null($id) && (1===1) 
+    
+} // if( $bsend &&  $btoken && !$berr_state 
+
+else if( $bsearch &&  $btoken && !$berr_state ) {
+    
+    $lposa = [ 'state'=>$csrf_state, 'start_time'=>$now, 'getp'=>'msg', 'scope'=>$scope ]; 
+    $lposj = json_encode($lposa);
+    file_put_contents($last_post_oauth_stateFnm, $lposj);
+    
+     //https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages
+     //messages search: https://developers.google.com/workspace/gmail/api/guides/filtering
+////https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/get
+//
+     //userId="gmail@gmail.com"
+     //threadId 
+     //historyId
+     //labelIds
+     //id -- this is message iD
+
+    //$q = 'in:sent after:2025/03/20 before: 2025/04/21'; 
+    //$q = 'is:sent ExCel';
+    //$q = 'is:sent Crime';
+     //"from:someuser@example.com rfc822msgid:<somemsgid@example.com> is:unread".
+
+    $fields = [
+        'client_id'=>$client_id,
+        'key'=>$api_id,
+        'client_secret'=> $client_secret , 
+        "scope" => 'https://www.googleapis.com/auth/gmail.readonly',
+        "expires_in" => 3000,
+        //"verified_email" => true,
+        //"access_type" => "offline",
+        //'q' => $q,
+        'state' => $csrf_state,
+        'redirect_uri' => $redirect_uri,  //Callback URL: This is the redirect URL you specified in your Google Cloud Console. //  redirect_uri=https://YOUR_APP/callback&
+        // //'includeSpamTrash' => true,
+        ////$client->setIncludeGrantedScopes(true);
+        ////$client->setPrompt('consent');
+        ////$client->setLoginHint('hint@example.com');
+    ]; 
+    echo '<br> fields ='; print_r($fields); 
+    //$qs= http_build_query($urla, '', '&amp;');//automatically urlencodes, maybe this causes an error in curl, which 2nd time urlencodes
+    $pf = http_build_query_noUrlEnc([ 'arr'=>$fields, 'ga' => [ '0'=>['g'=>'&', 'gcolval'=>'='] ] ]); 
+    echo '<br> pf='.$pf; 
+    file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    pf='.$pf, FILE_APPEND  ); 
+
+    //'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$q
+    //'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages/'.$messageId
+    // https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list
+    // https://www.postman.com/postman/google-api-workspace/documentation/r07891g/google-gmail-api
+    
+    $qs = 'q='.urlencode($q).'&'.$pf;
+    echo '<br> 477____qs='.$qs; 
+
+    $curl = curl_init( 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs ); 
+    //$curl = curl_init('https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages');
+    curl_setopt_array( $curl, [
+        //CURLOPT_URL => 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs // "https://myapi.com/api",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => "GET",
+        //CURLOPT_POSTFIELDS => $pf,
+        CURLOPT_REFERER=>$referer,
+        CURLOPT_HTTPHEADER => [ 
+            'authorization: '.$token_type.' '.$access_token,
+            "content-type: application/x-www-form-urlencoded",
+            'Cache-Control: no-cache',
+        ],
+    ]);
+
+    $responsej = curl_exec($curl);
+    echo '<br> 485___ query response =<pre> '; print_r($responsej);
+
+    file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    get-response='.html_entity_decode($responsej), FILE_APPEND  ); 
+    $err = curl_error($curl);
+    echo '<br>  485___err='; print_r($err);
+    //curl_close($curl);
+    
+    //array_key_exists('',$rsp) ? $rsp[''] : null;
+    $rsp = json_decode($responsej,true);
+    
+    if( !empty($rsp) ) {
+        
+        //echo '<br> rsp = '; print_r($rsp);
+        $msgA = array_key_exists('messages',$rsp) ? $rsp['messages'] : null;
+        $nxPgTk =  array_key_exists('nextPageToken',$rsp) ? $rsp['nextPageToken'] : null;
+        $resN = array_key_exists('resultSizeEstimate',$rsp) ? $rsp['resultSizeEstimate'] : null;
+        
+        $bnew_msg = true;
+        $hda_names_to = ['Delivered-To', 'To']; //'Subject', 'Date'
+        $mans = []; $cnt_mans = -1;
+        $db_emails = [];
+        if( !empty($msgA) ) {
+            
+            if( $binit_db_gmsg ) {
+                $db_gmsg = [];
+                $db_gmsg_ids = [];
+                $db_gmsg_emails = [];
+                $db_gmsg_threads = [];
+            }
+            else {
+                $db_gmsg = $spy->YAMLLoad($dby_gmsgFnm); //contains various message fields, uid - msg_id 
+                $cnt = count($db_gmsg);
+                
+                $db_gmsg_ids_j = file_get_contents($dbj_gmsg_idsFnm); // maps msg_id with 
+                $db_gmsg_ids = json_decode($db_gmsg_ids_j, true);
+                
+                $db_gmsg_emails_j = file_get_contents($dbj_gmsg_emailsFnm); //maps email: msg-id
+                $db_gmsg_emails = json_decode($db_gmsg_emails, true);
+                
+                $db_gmsg_threads_j = file_get_contents($dbj_gmsg_threadsFnm); //maps tread_id: msg-id
+                $db_gmsg_threads = json_decode($db_gmsg_threads, true); 
+            }
+            
+            $cnt=-1;
+            foreach($msgA as $ma) {
+                
+                $cnt++; 
+                $id = $ma['id'];
+                $tid = $ma['threadId'];
+                // 1:1 between id and cnt_mans
+                if(array_key_exists($id, $db_gmsg_ids) ) {
+                    $cnt_mans = $db_gmsg_ids[$id];
+                }
+                else {
+                    $cnt_mans = count($db_gmsg_ids); // new
+                }
+                echo '<br>############ cnt='.$cnt.'   id='.$id.'   ma='; print_r($ma); 
+                
+                //if(!array_key_exists($id,  $db_gmsg_ids ) ) { $bnew_msg=true; }
+                if($bnew_msg) {
+
+           
+                    $curl = curl_init('https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages/'.$id); 
+                    curl_setopt_array( $curl, [
+                        //CURLOPT_URL => 'https://www.googleapis.com/gmail/v1/users/'.$userId.'/messages?'.$qs // "https://myapi.com/api",
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_ENCODING => "",
+                        CURLOPT_MAXREDIRS => 10,
+                        CURLOPT_TIMEOUT => 30,
+                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                        CURLOPT_CUSTOMREQUEST => "GET",
+                        //CURLOPT_POSTFIELDS => $pf,
+                        CURLOPT_HTTPHEADER => [ 
+                            'authorization: '.$token_type.' '.$access_token,
+                            "content-type: application/x-www-form-urlencoded",
+                            'Cache-Control: no-cache',
+                        ],
+                    ]);
+                    
+                    $mresponsej = curl_exec($curl);
+                    echo '<br>$cnt='.$cnt.'   id='.$id.'  545___ query mresponse =<pre> '; print_r($mresponsej);
+                
+                    file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    get-response='.html_entity_decode($mresponsej), FILE_APPEND  ); 
+                    $err = curl_error($curl);
+                    echo '<br>$cnt='.$cnt.'   id='.$id.'  545___err='; print_r($err);
+                    curl_close($curl);
+                    
+                    if( !empty($mresponsej) ) {
+                        
+                        $cnt_mans++; 
+                        $mrspA = json_decode($mresponsej, true);
+                        echo '<br> $mrspA ='; print_r($mrspA);
+                        //array_key_exists('',$mrspA) ? $mrspA[''] : null;
+                        $labIda = array_key_exists('labelIds',$mrspA) ? $mrspA['labelIds'] : null; 
+                        $threadId = array_key_exists('threadId',$mrspA) ? $mrspA['threadId'] : null;
+                        $historyId = array_key_exists('historyId',$mrspA) ? $mrspA['historyId'] : null;
+                        $pl = array_key_exists('payload',$mrspA) ? $mrspA['payload'] : null;
+                        $hda = array_key_exists('headers',$pl) ? $pl['headers'] : null; 
+                        
+                        $mans[$cnt_mans]['labelIds'] = $labIda; 
+                        $mans[$cnt_mans]['id'] = $id; // 1:1 between id and cnt_mans
+                        $mans[$cnt_mans]['threadId'] = $threadId; 
+                        $mans[$cnt_mans]['historyId'] = $historyId; 
+                        $db_gmsg_ids[$id] = $cnt_mans;
+                        $db_gmsg_threads[$threadId] = $cnt_mans;
+                        
+                        if( !empty($hda) ) {
+                            foreach( $hda as $hds ) {
+                                echo '<br>COND_hds='.( array_key_exists($kto,$hds) ).'    hds = '. json_encode($hds); 
+                                foreach ( $hda_names_to as $kto ) {
+                                    if( $kto===$hds['name']) {
+                                        echo '<br> 614______$cnt_mans='.$cnt_mans.'  key_exists'.$kto.'   hds='; print_r($hds); 
+                                        $vto = $hds['value'];
+                                        $mans[$cnt_mans][$kto] = $vto;
+                                        $db_gmsg_emails[$vto] = $cnt_mans; 
+                                    } // if( array_key_exists($kto,$hds
+                                } // foreach ( $hda_names_to as $kto
+                            } //  foreach($hda as $hds
+                        } // if(!empty($hda)) 
+                        
+                    } //  if(!empty($mresponsej)
+                    
+                } //bnew_msg
+            } // foreach($msgA as $ma)
+            
+            $bm = file_put_contents($dby_gmsgFnm, $spy->YAMLDump($mans) );
+            echo '<br> 600_____dumped mans bm='.$bm; 
+            
+            $bm = file_put_contents($dbj_gmsg_idsFnm, json_encode($db_gmsg_ids) );
+            echo '<br> 600_____dumped mans db_gmsg_ids bm='.$bm; 
+            
+            $bm = file_put_contents($dbj_gmsg_emailsFnm, json_encode($db_gmsg_emails) );
+            echo '<br> 600_____dumped mans db_gmsg_emails bm='.$bm; 
+            
+            $bm = file_put_contents($dbj_gmsg_threadsFnm, json_encode($db_gmsg_threads) );
+            echo '<br> 600_____dumped mans db_gmsg_threads bm='.$bm; 
+    
+        } // if(!empty($msgA) ) 
+        
+    } // if( !empty($rsp
+} // if($bmatched_code && !$berr_state
+
+if ($err) {
+    echo "cURL Error #:" . $err;
+        file_put_contents( $request_log2Fnm, PHP_EOL.'    ##date='.$now.'    err='.html_entity_decode($err), FILE_APPEND  ); 
+} else {
+  //  echo $response;
+}
+
