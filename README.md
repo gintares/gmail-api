@@ -1,26 +1,7 @@
 # gmail-api
-gmail api to send emails 
+code connects to gmail-API, searches for messages
 
-
-I use gmail-api, php and curl to fetch message from gmail, and than to send it to recipient.
-It works authentification with gmail, and the messages search.
-It does not work sending messsage with multiple files attached.
-
-I am getting this error:
- 560___messagaes query response =
-
- {
-  "error": {
-    "code": 400,
-    "message": "'raw' RFC822 payload message string or uploading message via /upload/* URL required",
-    "errors": [
-      {
-        "message": "'raw' RFC822 payload message string or uploading message via /upload/* URL required",
-        "domain": "global",
-        "reason": "invalidArgument"
-      }
-    ],
-    "status": "INVALID_ARGUMENT"
-  }
-}
+it is used demo email: ginstat4@gmail.com
+password: gmailapi4!
+url to see in action: https://www.uveik.com/exmpl/e25/ga/connect_and_search.php
 
